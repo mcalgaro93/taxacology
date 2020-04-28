@@ -1,0 +1,19 @@
+Package: taxacology
+Title: Relative abundance differences on case-control and/or repeated measures studies.
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Matteo",
+           family = "Calgaro",
+           role = c("aut", "cre"),
+           email = "mcalgaro93@gmail.com")
+Description: In many microbiome studies, one of the first steps of the data exploration, together with alpha and beta diversities analyses, is to graphically represent the microbial composition of biological samples. This fundamental step of the analysis is performed using bar plots and other graphical tools where many metadata variables can be used to group and summarize samples. It might happen that different patterns in the relative abundances of a taxonomical group are clearly visible between two or more group of samples. It becomes useful to have a tool to test if those observed patterns are significantly different between groups.
+License: What license it uses
+Encoding: UTF-8
+LazyData: true
+Imports:
+    plyr,
+    ggplot2,
+    phyloseq,
+    reshape2,
+    ggpubr
+RoxygenNote: 6.1.1
