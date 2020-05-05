@@ -15,5 +15,6 @@ Imports:
     ggplot2,
     phyloseq,
     reshape2,
-    ggpubr
+    ggpubr,
+    ggnomics
 RoxygenNote: 6.1.1
