@@ -7,7 +7,7 @@
 test_taxa(ps, rank = "Phylum", time_variable = "TimePoint",
   treatment_variable = "Treatment", sample_variable = "Sample",
   taxa_to_test = c("Actinobacteria", "Verrucomicrobia"),
-  test_by = "time", comparisons_list = NULL)
+  test_by = "time", strat_by = NULL, comparisons_list = NULL)
 }
 \arguments{
 \item{ps}{A phyloseq object.}
@@ -23,6 +23,8 @@ test_taxa(ps, rank = "Phylum", time_variable = "TimePoint",
 \item{taxa_to_test}{A vector of character containings taxonomical group names of interest. If \code{NULL}, all the taxonomical features of the agglomerated rank are tested.}
 
 \item{test_by}{\code{"time"} character string if the difference between repeated measures/time variable is to be tested or \code{"treatment"} character string if the difference between cndition/treatment variable is to be tested.}
+
+\item{strat_by}{Name of the column, in sample_data slot of the phyloseq object, for the stratification variable. Default set to \code{NULL}.}
 
 \item{comparisons_list}{A list of length-2 vectors. The entries in the vector are either the names of 2 values on the x-axis or the 2 integers that correspond to the index of the groups of interest, to be compared. If empty and \code{test_by = "time"} each level of repeated measures/time variable is compared with his baseline (the first level). If empty and \code{test_by = "treatment"} each level of condition/treatment variable is compared with his baseline (the first level).}
 }

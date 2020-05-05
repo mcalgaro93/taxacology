@@ -12,6 +12,7 @@
 #' @param sample_variable Name of the column, in sample_data slot of the phyloseq object, where sample names variable is stored.
 #' @param taxa_to_test A vector of character containings taxonomical group names of interest. If \code{NULL}, all the taxonomical features of the agglomerated rank are tested.
 #' @param test_by \code{"time"} character string if the difference between repeated measures/time variable is to be tested or \code{"treatment"} character string if the difference between cndition/treatment variable is to be tested.
+#' @param strat_by Name of the column, in sample_data slot of the phyloseq object, for the stratification variable. Default set to \code{NULL}.
 #' @param comparisons_list A list of length-2 vectors. The entries in the vector are either the names of 2 values on the x-axis or the 2 integers that correspond to the index of the groups of interest, to be compared. If empty and \code{test_by = "time"} each level of repeated measures/time variable is compared with his baseline (the first level). If empty and \code{test_by = "treatment"} each level of condition/treatment variable is compared with his baseline (the first level).
 #' @return a \code{ggplot} object with taxa_to_test faceted columns and repeated measures/time or condition/treatment levels as faceted rows.
 #' @export
@@ -23,6 +24,7 @@ test_taxa <- function(ps,
                       sample_variable = "Sample",
                       taxa_to_test = c("Actinobacteria","Verrucomicrobia"),
                       test_by = "time",
+                      strat_by = NULL,
                       comparisons_list = NULL) {
   # Glom by rank
   physeq <- tax_glom(ps, rank)
@@ -69,7 +71,7 @@ test_taxa <- function(ps,
     ggplot(data = df_to_plot, aes(x = eval(parse(text = treatment_variable)), y = value, fill = eval(parse(text = treatment_variable)))) +
       geom_col(data = df_summary,position = position_dodge(), color = "black") +
       geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
-      facet_grid(variable ~ eval(parse(text = time_variable)), scales = "free_y") +
+      facet_grid(variable ~ eval(parse(text = time_variable)) + eval(parse(text = strat_by)), scales = "free_y") +
       stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list,label.y.npc = 0.6) +
       # scale_y_continuous(limits = c(0,1)) +
       labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance")
@@ -87,7 +89,7 @@ test_taxa <- function(ps,
     ggplot(data = df_to_plot, aes(x = eval(parse(text = time_variable)), y = value, fill = eval(parse(text = time_variable)))) +
       geom_col(data = df_summary, position = position_dodge(), color = "black") +
       geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
-      facet_grid(variable ~ eval(parse(text = treatment_variable)), scales = "free_y") +
+      facet_grid(variable ~ eval(parse(text = treatment_variable)) + eval(parse(text = strat_by)), scales = "free_y") +
       stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list, paired = TRUE, label.y.npc = 0.6) +
       # scale_y_continuous(limits = c(0,0.1+max(df_to_plot$value))) +
       labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
