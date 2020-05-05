@@ -35,8 +35,6 @@ test_taxa <- function(ps,
   rownames(TSS) = as.vector(tax_table(physeq)[name_indexes, rank])
   # Convert to data.frame the SAMPLE x TAXA matrix
   df <- data.frame(t(TSS))
-  # Add metadata about time, treatment and sample ID
-  df[, c(time_variable, treatment_variable, sample_variable)] <- physeq@sam_data[, c(time_variable, treatment_variable, sample_variable)]
 
   # A recursive fast method to order df by specified variables
   iterative_ordering <- function(df, var_names, i = 1) {
@@ -46,8 +44,17 @@ test_taxa <- function(ps,
       iterative_ordering(df_ordered, var_names, i + 1) else return(df_ordered)
   }
 
-  # Order the df
-  df_ordered <- iterative_ordering(df = df, var_names = c(sample_variable, time_variable, treatment_variable))
+  # Add metadata about time, treatment and sample ID + stratification variable if present
+  if(!is.null(strat_by)){
+    df[, c(time_variable, treatment_variable, strat_by, sample_variable)] <- physeq@sam_data[, c(time_variable, treatment_variable, strat_by, sample_variable)]
+    # Order the df
+    df_ordered <- iterative_ordering(df = df, var_names = c(sample_variable, strat_by, time_variable, treatment_variable))
+  } else {
+    df[, c(time_variable, treatment_variable, sample_variable)] <- physeq@sam_data[, c(time_variable, treatment_variable, sample_variable)]
+    # Order the df
+    df_ordered <- iterative_ordering(df = df, var_names = c(sample_variable, time_variable, treatment_variable))
+  }
+
   # Melt the df
   df_melted <- reshape2::melt(df_ordered[, -ncol(df_ordered)])
   # Check taxa to test
@@ -55,8 +62,11 @@ test_taxa <- function(ps,
     df_to_plot <- df_melted[df_melted$variable %in% taxa_to_test, ]
   } else df_to_plot <- df_melted
   # Get mean and sd for samples grouped by specified variables
-  df_summary <- ddply(df_to_plot, .variables = c(time_variable, treatment_variable, "variable"), function(x) return(data.frame(sd = sd(x[, "value"]),
-                                                                                                                               value = mean(x[, "value"]))))
+  if(!is.null(strat_by))
+    df_summary <- ddply(df_to_plot, .variables = c(strat_by, time_variable, treatment_variable, "variable"), function(x) return(data.frame(sd = sd(x[, "value"]),
+                                                                                                                                value = mean(x[, "value"]))))
+  else df_summary <- ddply(df_to_plot, .variables = c(time_variable, treatment_variable, "variable"), function(x) return(data.frame(sd = sd(x[, "value"]),
+                                                                                                                                              value = mean(x[, "value"]))))
 
   if (test_by == "treatment") {
     if(is.null(comparisons_list)){
@@ -68,13 +78,24 @@ test_taxa <- function(ps,
       }
     }
     # Plot the data
-    ggplot(data = df_to_plot, aes(x = eval(parse(text = treatment_variable)), y = value, fill = eval(parse(text = treatment_variable)))) +
-      geom_col(data = df_summary,position = position_dodge(), color = "black") +
-      geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
-      facet_grid(variable ~ eval(parse(text = time_variable)) + eval(parse(text = strat_by)), scales = "free_y") +
-      stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list,label.y.npc = 0.6) +
-      # scale_y_continuous(limits = c(0,1)) +
-      labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance")
+    if(!is.null(strat_by)){ # With an additional stratification variable
+      ggplot(data = df_to_plot, aes(x = eval(parse(text = treatment_variable)), y = value, fill = eval(parse(text = treatment_variable)))) +
+        geom_col(data = df_summary,position = position_dodge(), color = "black") +
+        geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
+        facet_nested(variable ~ eval(parse(text = strat_by)) + eval(parse(text = time_variable)), scales = "free_y") +
+        stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list,label.y.npc = 0.6) +
+        # scale_y_continuous(limits = c(0,1)) +
+        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance")
+    } else { # or without stratification variable
+      ggplot(data = df_to_plot, aes(x = eval(parse(text = treatment_variable)), y = value, fill = eval(parse(text = treatment_variable)))) +
+        geom_col(data = df_summary,position = position_dodge(), color = "black") +
+        geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
+        facet_grid(variable ~ eval(parse(text = time_variable)), scales = "free_y") +
+        stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list,label.y.npc = 0.6) +
+        # scale_y_continuous(limits = c(0,1)) +
+        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance")
+    }
+
   } else if (test_by == "time") {
     # Get the levels for the time variable. If they are more than 2, each level is compared with the baseline (first level).
     if(is.null(comparisons_list)){
@@ -86,12 +107,23 @@ test_taxa <- function(ps,
       }
     }
     # Plot the data
-    ggplot(data = df_to_plot, aes(x = eval(parse(text = time_variable)), y = value, fill = eval(parse(text = time_variable)))) +
-      geom_col(data = df_summary, position = position_dodge(), color = "black") +
-      geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
-      facet_grid(variable ~ eval(parse(text = treatment_variable)) + eval(parse(text = strat_by)), scales = "free_y") +
-      stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list, paired = TRUE, label.y.npc = 0.6) +
-      # scale_y_continuous(limits = c(0,0.1+max(df_to_plot$value))) +
-      labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
+    if(!is.null(strat_by)){ # With an additional stratification variable
+      ggplot(data = df_to_plot, aes(x = eval(parse(text = time_variable)), y = value, fill = eval(parse(text = time_variable)))) +
+        geom_col(data = df_summary, position = position_dodge(), color = "black") +
+        geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
+        facet_nested(variable ~ eval(parse(text = strat_by)) + eval(parse(text = treatment_variable)), scales = "free_y") +
+        stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list, paired = TRUE, label.y.npc = 0.6) +
+        # scale_y_continuous(limits = c(0,0.1+max(df_to_plot$value))) +
+        labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
+    } else { # or without stratification variable
+      ggplot(data = df_to_plot, aes(x = eval(parse(text = time_variable)), y = value, fill = eval(parse(text = time_variable)))) +
+        geom_col(data = df_summary, position = position_dodge(), color = "black") +
+        geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
+        facet_grid(variable ~ eval(parse(text = treatment_variable)), scales = "free_y") +
+        stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list, paired = TRUE, label.y.npc = 0.6) +
+        # scale_y_continuous(limits = c(0,0.1+max(df_to_plot$value))) +
+        labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
+    }
+
   }
 }
