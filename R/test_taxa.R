@@ -5,6 +5,8 @@
 #' The graphical representation can be of two types: by the repeated measures/time variable or by the treatment/condition variable.
 #' Non parametric Mann-Whitney or Wilcox test are performed to study differences in the relative abundances.
 #'
+#' @import rstatix
+#'
 #' @param ps A phyloseq object.
 #' @param rank The taxonomical rank, found in the tax_table columns, for taxa agglomeration.
 #' @param time_variable Name of the column, in sample_data slot of the phyloseq object, where repeated measures/time variable is stored.
@@ -14,6 +16,9 @@
 #' @param test_by \code{"time"} character string if the difference between repeated measures/time variable is to be tested or \code{"treatment"} character string if the difference between cndition/treatment variable is to be tested.
 #' @param strat_by Name of the column, in sample_data slot of the phyloseq object, for the stratification variable. Default set to \code{NULL}.
 #' @param comparisons_list A list of length-2 vectors. The entries in the vector are either the names of 2 values on the x-axis or the 2 integers that correspond to the index of the groups of interest, to be compared. If empty and \code{test_by = "time"} each level of repeated measures/time variable is compared with his baseline (the first level). If empty and \code{test_by = "treatment"} each level of condition/treatment variable is compared with his baseline (the first level).
+#' @param show_test If TRUE, significant p-values or adjusted p-values are shown.
+#' @param adj If TRUE (default = FALSE) and \code{"show_test = TRUE"}, significant adjusted (FDR) p-values are shown.
+#' @param y_position If specified (default = NULL) set the y-axis position of the tests.
 #' @return a \code{ggplot} object with taxa_to_test faceted columns and repeated measures/time or condition/treatment levels as faceted rows.
 #' @export
 
@@ -25,7 +30,10 @@ test_taxa <- function(ps,
                       taxa_to_test = c("Actinobacteria","Verrucomicrobia"),
                       test_by = "time",
                       strat_by = NULL,
-                      comparisons_list = NULL) {
+                      comparisons_list = NULL,
+                      show_test = TRUE,
+                      adj = FALSE,
+                      y_position = NULL) {
   # Glom by rank
   physeq <- tax_glom(ps, rank)
   # Get the relative abundances
@@ -57,17 +65,17 @@ test_taxa <- function(ps,
 
   # Melt the df
   df_melted <- reshape2::melt(df_ordered[, -ncol(df_ordered)])
+  if(is.null(strat_by)){
+      colnames(df_melted) <- c("time","treatment","feature","relative_abundance")
+  } else {
+    colnames(df_melted) <- c("time","treatment","strat","feature","relative_abundance")
+    df_melted[,"time_strat"] <- paste0(df_melted$time,"\n",df_melted$strat)
+    df_melted[,"treatment_strat"] <- paste0(df_melted$treatment,"\n",df_melted$strat)
+  }
   # Check taxa to test
   if (length(taxa_to_test) > 0) {
-    df_to_plot <- df_melted[df_melted$variable %in% taxa_to_test, ]
+    df_to_plot <- df_melted[df_melted$feature %in% taxa_to_test, ]
   } else df_to_plot <- df_melted
-  # Get mean and sd for samples grouped by specified variables
-  if(!is.null(strat_by))
-    df_summary <- ddply(df_to_plot, .variables = c(strat_by, time_variable, treatment_variable, "variable"), function(x) return(data.frame(sd = sd(x[, "value"]),
-                                                                                                                                value = mean(x[, "value"]))))
-  else df_summary <- ddply(df_to_plot, .variables = c(time_variable, treatment_variable, "variable"), function(x) return(data.frame(sd = sd(x[, "value"]),
-                                                                                                                                              value = mean(x[, "value"]))))
-
   if (test_by == "treatment") {
     if(is.null(comparisons_list)){
       comparisons_list = list()
@@ -79,21 +87,42 @@ test_taxa <- function(ps,
     }
     # Plot the data
     if(!is.null(strat_by)){ # With an additional stratification variable
-      ggplot(data = df_to_plot, aes(x = eval(parse(text = treatment_variable)), y = value, fill = eval(parse(text = treatment_variable)))) +
-        geom_col(data = df_summary,position = position_dodge(), color = "black") +
-        geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
-        facet_nested(variable ~ eval(parse(text = strat_by)) + eval(parse(text = time_variable)), scales = "free_y") +
-        stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list,label.y.npc = 0.6) +
-        # scale_y_continuous(limits = c(0,1)) +
-        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance")
+      # Get mean and sd for samples grouped by specified variables
+      df_summary <- ddply(df_to_plot, .variables = ~ time_strat + treatment + feature, function(x) return(data.frame(sd = sd(x[, "relative_abundance"]), relative_abundance = mean(x[, "relative_abundance"]))))
+      df_to_plot[,"time_strat"] <- paste0(df_to_plot$time,"\n",df_to_plot$strat)
+      if(show_test){
+        stat.test <- df_to_plot %>%
+          group_by(feature, time_strat) %>%
+          wilcox_test(relative_abundance ~ treatment) %>%
+          adjust_pvalue(method = "BH") %>%
+          add_significance("p") %>%
+          add_xy_position(x = "treatment")
+      }
+      g <- ggbarplot(df_to_plot, x = "treatment", y = "relative_abundance",
+        add = "mean_se",
+        fill = "treatment",
+        facet.by = c("feature","time_strat"),
+        error.plot = "upper_errorbar", ggtheme = theme_grey(),scales = "free_y") +
+        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = 1) +
+        labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
     } else { # or without stratification variable
-      ggplot(data = df_to_plot, aes(x = eval(parse(text = treatment_variable)), y = value, fill = eval(parse(text = treatment_variable)))) +
-        geom_col(data = df_summary,position = position_dodge(), color = "black") +
-        geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
-        facet_grid(variable ~ eval(parse(text = time_variable)), scales = "free_y") +
-        stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list,label.y.npc = 0.6) +
-        # scale_y_continuous(limits = c(0,1)) +
-        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance")
+      # Get mean and sd for samples grouped by specified variables
+      df_summary <- ddply(df_to_plot, .variables = ~ time + treatment + feature, function(x) return(data.frame(sd = sd(x[, "relative_abundance"]), relative_abundance = mean(x[, "relative_abundance"]))))
+      if(show_test){
+        stat.test <- df_to_plot %>%
+          group_by(feature, time) %>%
+          wilcox_test(relative_abundance ~ treatment) %>%
+          adjust_pvalue(method = "BH") %>%
+          add_significance("p") %>%
+          add_xy_position(x = "treatment")
+      }
+      g <- ggbarplot(df_to_plot, x = "treatment", y = "relative_abundance",
+        add = "mean_se",
+        fill = "treatment",
+        facet.by = c("feature", "time"),
+        error.plot = "upper_errorbar", ggtheme = theme_grey(), scales = "free_y") +
+        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = 1) +
+        labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
     }
 
   } else if (test_by == "time") {
@@ -108,22 +137,49 @@ test_taxa <- function(ps,
     }
     # Plot the data
     if(!is.null(strat_by)){ # With an additional stratification variable
-      ggplot(data = df_to_plot, aes(x = eval(parse(text = time_variable)), y = value, fill = eval(parse(text = time_variable)))) +
-        geom_col(data = df_summary, position = position_dodge(), color = "black") +
-        geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
-        facet_nested(variable ~ eval(parse(text = strat_by)) + eval(parse(text = treatment_variable)), scales = "free_y") +
-        stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list, paired = TRUE, label.y.npc = 0.6) +
-        # scale_y_continuous(limits = c(0,0.1+max(df_to_plot$value))) +
+      # Get mean and sd for samples grouped by specified variables
+      df_summary <- ddply(df_to_plot, .variables = ~ treatment_strat + time + feature, function(x) return(data.frame(sd = sd(x[, "relative_abundance"]), relative_abundance = mean(x[, "relative_abundance"]))))
+      df_to_plot[,"treatment_strat"] <- paste0(df_to_plot$treatment,"\n",df_to_plot$strat)
+      if(show_test){
+        stat.test <- df_to_plot %>%
+          group_by(feature, treatment_strat) %>%
+          wilcox_test(relative_abundance ~ time, paired = TRUE) %>%
+          adjust_pvalue(method = "BH") %>%
+          add_significance("p") %>%
+          add_xy_position(x = "time")
+      }
+      g <- ggbarplot(df_to_plot, x = "time", y = "relative_abundance",
+        add = "mean_se",
+        fill = "time",
+        facet.by = c("feature","treatment_strat"),
+        error.plot = "upper_errorbar", ggtheme = theme_grey(),scales = "free_y") +
+        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = 1) +
         labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
     } else { # or without stratification variable
-      ggplot(data = df_to_plot, aes(x = eval(parse(text = time_variable)), y = value, fill = eval(parse(text = time_variable)))) +
-        geom_col(data = df_summary, position = position_dodge(), color = "black") +
-        geom_errorbar(data = df_summary, aes(ymin = value, ymax = value + sd), width = 0.2, position = position_dodge(0.9)) +
-        facet_grid(variable ~ eval(parse(text = treatment_variable)), scales = "free_y") +
-        stat_compare_means(data = df_to_plot, method = "wilcox", comparisons = comparisons_list, paired = TRUE, label.y.npc = 0.6) +
-        # scale_y_continuous(limits = c(0,0.1+max(df_to_plot$value))) +
-        labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
+      # Get mean and sd for samples grouped by specified variables
+      df_summary <- ddply(df_to_plot, .variables = ~ time + treatment + feature, function(x) return(data.frame(sd = sd(x[, "relative_abundance"]), relative_abundance = mean(x[, "relative_abundance"]))))
+      if(show_test){
+        stat.test <- df_to_plot %>%
+          group_by(feature, treatment) %>%
+          wilcox_test(relative_abundance ~ time) %>%
+          adjust_pvalue(method = "BH") %>%
+          add_significance("p") %>%
+          add_xy_position(x = "time")
+      }
+      g <- ggbarplot(df_to_plot, x = "time", y = "relative_abundance",
+        add = "mean_se",
+        fill = "time",
+        facet.by = c("feature", "treatment"),
+        error.plot = "upper_errorbar", ggtheme = theme_grey(), scales = "free_y") +
+        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = 1) +
+        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance")
     }
-
   }
+  # If show_test is TRUE, add p-value or adjusted p-values to plot
+  if(show_test){
+    if(!adj){
+      stat.test <- stat.test[,!grepl(pattern = "adj", x = colnames(stat.test))]
+      g + stat_pvalue_manual(stat.test, hide.ns = TRUE, label = "p", y.position = ifelse(is.null(y_position), "y.position", y_position))
+    } else g + stat_pvalue_manual(stat.test, hide.ns = TRUE, label = "p.adj", y.position = ifelse(is.null(y_position), "y.position", y_position))
+  } else g
 }
