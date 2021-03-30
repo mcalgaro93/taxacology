@@ -1,6 +1,6 @@
 Package: taxacology
 Title: Relative abundance differences on case-control and/or repeated measures studies.
-Version: 0.0.1
+Version: 0.0.2
 Authors@R: 
     person(given = "Matteo",
            family = "Calgaro",
