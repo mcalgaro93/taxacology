@@ -45,7 +45,7 @@ test_taxa(
 \item{y_position}{If specified (default = NULL) set the y-axis position of the tests.}
 }
 \value{
-a \code{ggplot} object with taxa_to_test faceted columns and repeated measures/time or condition/treatment levels as faceted rows.
+a list with two slots: \code{plot} which contains a \code{ggplot} object with taxa_to_test faceted rows and repeated measures/time or condition/treatment levels as faceted columns. And \code{data} slot, which contains the summary mean and sd for relative abundances.
 }
 \description{
 This function takes a phyloseq object with otu_table, sam_data and tax_table slots and compute the relative abundances for the features in a specified taxonomical rank.

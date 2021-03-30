@@ -19,7 +19,7 @@
 #' @param show_test If TRUE, significant p-values or adjusted p-values are shown.
 #' @param adj If TRUE (default = FALSE) and \code{"show_test = TRUE"}, significant adjusted (FDR) p-values are shown.
 #' @param y_position If specified (default = NULL) set the y-axis position of the tests.
-#' @return a \code{ggplot} object with taxa_to_test faceted columns and repeated measures/time or condition/treatment levels as faceted rows.
+#' @return a list with two slots: \code{plot} which contains a \code{ggplot} object with taxa_to_test faceted rows and repeated measures/time or condition/treatment levels as faceted columns. And \code{data} slot, which contains the summary mean and sd for relative abundances.
 #' @export
 
 test_taxa <- function(ps,
@@ -99,12 +99,13 @@ test_taxa <- function(ps,
           add_xy_position(x = "treatment")
       }
       g <- ggbarplot(df_to_plot, x = "treatment", y = "relative_abundance",
-        add = "mean_se",
+        add = "mean",
         fill = "treatment",
         facet.by = c("feature","time_strat"),
-        error.plot = "upper_errorbar", ggtheme = theme_grey(),scales = "free_y") +
-        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = 1) +
-        labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
+        ggtheme = theme_grey(),scales = "free_y") +
+        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = -0.1) +
+        labs(fill = time_variable, x = time_variable, y = "Relative Abundance") +
+        geom_linerange(df_summary, mapping = aes(ymin = relative_abundance, ymax = relative_abundance + sd))
     } else { # or without stratification variable
       # Get mean and sd for samples grouped by specified variables
       df_summary <- ddply(df_to_plot, .variables = ~ time + treatment + feature, function(x) return(data.frame(sd = sd(x[, "relative_abundance"]), relative_abundance = mean(x[, "relative_abundance"]))))
@@ -117,12 +118,13 @@ test_taxa <- function(ps,
           add_xy_position(x = "treatment")
       }
       g <- ggbarplot(df_to_plot, x = "treatment", y = "relative_abundance",
-        add = "mean_se",
+        add = "mean",
         fill = "treatment",
         facet.by = c("feature", "time"),
-        error.plot = "upper_errorbar", ggtheme = theme_grey(), scales = "free_y") +
-        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = 1) +
-        labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
+        ggtheme = theme_grey(), scales = "free_y") +
+        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = -0.1) +
+        labs(fill = time_variable, x = time_variable, y = "Relative Abundance") +
+        geom_linerange(df_summary, mapping = aes(ymin = relative_abundance, ymax = relative_abundance + sd))
     }
 
   } else if (test_by == "time") {
@@ -149,12 +151,13 @@ test_taxa <- function(ps,
           add_xy_position(x = "time")
       }
       g <- ggbarplot(df_to_plot, x = "time", y = "relative_abundance",
-        add = "mean_se",
+        add = "mean",
         fill = "time",
         facet.by = c("feature","treatment_strat"),
-        error.plot = "upper_errorbar", ggtheme = theme_grey(),scales = "free_y") +
-        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = 1) +
-        labs(fill = time_variable, x = time_variable, y = "Relative Abundance")
+        ggtheme = theme_grey(),scales = "free_y") +
+        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = -0.1) +
+        labs(fill = time_variable, x = time_variable, y = "Relative Abundance") +
+        geom_linerange(df_summary, mapping = aes(ymin = relative_abundance, ymax = relative_abundance + sd))
     } else { # or without stratification variable
       # Get mean and sd for samples grouped by specified variables
       df_summary <- ddply(df_to_plot, .variables = ~ time + treatment + feature, function(x) return(data.frame(sd = sd(x[, "relative_abundance"]), relative_abundance = mean(x[, "relative_abundance"]))))
@@ -167,12 +170,13 @@ test_taxa <- function(ps,
           add_xy_position(x = "time")
       }
       g <- ggbarplot(df_to_plot, x = "time", y = "relative_abundance",
-        add = "mean_se",
+        add = "mean",
         fill = "time",
         facet.by = c("feature", "treatment"),
-        error.plot = "upper_errorbar", ggtheme = theme_grey(), scales = "free_y") +
-        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = 1) +
-        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance")
+        ggtheme = theme_grey(), scales = "free_y") +
+        geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = -0.1) +
+        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance") +
+        geom_linerange(df_summary, mapping = aes(ymin = relative_abundance, ymax = relative_abundance + sd))
     }
   }
   # If show_test is TRUE, add p-value or adjusted p-values to plot
