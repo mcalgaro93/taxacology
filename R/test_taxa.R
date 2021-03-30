@@ -179,7 +179,8 @@ test_taxa <- function(ps,
   if(show_test){
     if(!adj){
       stat.test <- stat.test[,!grepl(pattern = "adj", x = colnames(stat.test))]
-      g + stat_pvalue_manual(stat.test, hide.ns = TRUE, label = "p", y.position = ifelse(is.null(y_position), "y.position", y_position))
-    } else g + stat_pvalue_manual(stat.test, hide.ns = TRUE, label = "p.adj", y.position = ifelse(is.null(y_position), "y.position", y_position))
-  } else g
+      gp <- g + stat_pvalue_manual(stat.test, hide.ns = TRUE, label = "p", y.position = ifelse(is.null(y_position), "y.position", y_position))
+    } else gp <- g + stat_pvalue_manual(stat.test, hide.ns = TRUE, label = "p.adj", y.position = ifelse(is.null(y_position), "y.position", y_position))
+  } else gp <- g
+  return(list(plot = gp, data = df_summary))
 }
