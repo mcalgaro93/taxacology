@@ -104,7 +104,7 @@ test_taxa <- function(ps,
         facet.by = c("feature","time_strat"),
         ggtheme = theme_grey(),scales = "free_y") +
         geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = -0.1) +
-        labs(fill = time_variable, x = time_variable, y = "Relative Abundance") +
+        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance") +
         geom_linerange(df_summary, mapping = aes(ymin = relative_abundance, ymax = relative_abundance + sd))
     } else { # or without stratification variable
       # Get mean and sd for samples grouped by specified variables
@@ -123,7 +123,7 @@ test_taxa <- function(ps,
         facet.by = c("feature", "time"),
         ggtheme = theme_grey(), scales = "free_y") +
         geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = -0.1) +
-        labs(fill = time_variable, x = time_variable, y = "Relative Abundance") +
+        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance") +
         geom_linerange(df_summary, mapping = aes(ymin = relative_abundance, ymax = relative_abundance + sd))
     }
 
@@ -175,7 +175,7 @@ test_taxa <- function(ps,
         facet.by = c("feature", "treatment"),
         ggtheme = theme_grey(), scales = "free_y") +
         geom_text(data = df_summary, aes(label = round(relative_abundance*100,2)), vjust = -0.1) +
-        labs(fill = treatment_variable, x = treatment_variable, y = "Relative Abundance") +
+        labs(fill = time_variable, x = time_variable, y = "Relative Abundance") +
         geom_linerange(df_summary, mapping = aes(ymin = relative_abundance, ymax = relative_abundance + sd))
     }
   }
